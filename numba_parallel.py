@@ -26,11 +26,20 @@ def find_max_each_row_numba(matrix):
     max_values = np.zeros(n, dtype=np.int64)
     max_columns = np.zeros(n, dtype=np.int64)
 
-    for i in prange(n):
-        max_value = matrix[i, 0]
-        max_col = 0
+    for i in range(n):
+        # Inisialisasi dengan kolom pertama yang bukan diagonal (i)
+        if i == 0:
+            max_value = matrix[i, 1]
+            max_col = 1
+            start_j = 2
+        else:
+            max_value = matrix[i, 0]
+            max_col = 0
+            start_j = 1
 
-        for j in range(1, n):
+        for j in range(start_j, n):
+            if j == i:
+                continue
             if matrix[i, j] > max_value:
                 max_value = matrix[i, j]
                 max_col = j
@@ -90,10 +99,8 @@ def main():
     for i in range(min(10, ukuran)):
         print(
             f"User {i+1:4} -> "
-            f"Max = {max_values[i]:8} "
-            f"Kolom = {max_columns[i]+1}"
+            f"User {max_columns[i]+1:4} "
+            f"dengan nilai kemiripan kolaboratif Max = {max_values[i]:8}"
         )
-
-
 if __name__ == "__main__":
     main()

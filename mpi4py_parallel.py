@@ -21,15 +21,23 @@ def matrix_multiply_rows(A_rows, B):
 
 def find_max_each_row(matrix):
     n = matrix.shape[0]
-
     max_values = np.zeros(n, dtype=np.int64)
     max_columns = np.zeros(n, dtype=np.int64)
 
     for i in range(n):
-        max_value = matrix[i, 0]
-        max_col = 0
+        # Inisialisasi dengan kolom pertama yang bukan diagonal (i)
+        if i == 0:
+            max_value = matrix[i, 1]
+            max_col = 1
+            start_j = 2
+        else:
+            max_value = matrix[i, 0]
+            max_col = 0
+            start_j = 1
 
-        for j in range(1, n):
+        for j in range(start_j, n):
+            if j == i:
+                continue
             if matrix[i, j] > max_value:
                 max_value = matrix[i, j]
                 max_col = j
@@ -104,8 +112,9 @@ def main():
     local_rows = rows_per_process[rank]
     local_A = np.empty((local_rows, n), dtype=np.int64)
 
+    sendbuf = [A, sendcounts, displs, MPI.INT64_T] if rank == 0 else None
     comm.Scatterv(
-        [A, sendcounts, displs, MPI.INT64_T],
+        sendbuf,
         local_A,
         root=0
     )
@@ -123,9 +132,10 @@ def main():
     if rank == 0:
         recv_C = np.empty((n, n), dtype=np.int64)
 
+    recvbuf = [recv_C, sendcounts, displs, MPI.INT64_T] if rank == 0 else None
     comm.Gatherv(
         local_C,
-        [recv_C, sendcounts, displs, MPI.INT64_T],
+        recvbuf,
         root=0
     )
 
@@ -149,8 +159,8 @@ def main():
         for i in range(min(10, n)):
             print(
                 f"User {i+1:4} -> "
-                f"Max = {max_values[i]:8} "
-                f"Kolom = {max_columns[i]+1}"
+                f"User {max_columns[i]+1:4} "
+                f"dengan nilai kemiripan kolaboratif Max = {max_values[i]:8}"
             )
 
 

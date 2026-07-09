@@ -1,5 +1,6 @@
 import numpy as np
 import time
+from pathlib import Path
 
 
 def matrix_multiply(A):
@@ -46,7 +47,13 @@ def main():
 
     ukuran = int(input("Masukkan ukuran matriks: "))
 
-    nama_file = f"similarity_matrix_{ukuran}.csv"
+    nama_file = Path(__file__).with_name(f"similarity_matrix_{ukuran}.csv")
+
+    if not nama_file.exists():
+        raise FileNotFoundError(
+            f"{nama_file.name} tidak ditemukan. "
+            f"Jalankan dulu: py Matrix_Similarity.py lalu masukkan ukuran {ukuran}."
+        )
 
     print("\nMembaca matriks...")
 

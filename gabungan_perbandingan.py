@@ -61,6 +61,7 @@ def jalankan_sekuensial(matrix):
     return {
         "nama": "Sequential",
         "waktu": execution_time,
+        "resource": 1,
         "max_values": max_values,
         "max_columns": max_columns,
     }
@@ -92,6 +93,7 @@ def jalankan_numba(matrix, jumlah_thread):
     return {
         "nama": f"Numba ({get_num_threads()} thread)",
         "waktu": execution_time,
+        "resource": get_num_threads(),
         "max_values": max_values,
         "max_columns": max_columns,
     }
@@ -136,6 +138,7 @@ def jalankan_mpi(ukuran, jumlah_proses):
         return {
             "nama": f"MPI4Py ({jumlah_proses} proses)",
             "waktu": None,
+            "resource": jumlah_proses,
             "error": "mpiexec tidak ditemukan",
         }
 
@@ -149,6 +152,7 @@ def jalankan_mpi(ukuran, jumlah_proses):
         return {
             "nama": f"MPI4Py ({jumlah_proses} proses)",
             "waktu": None,
+            "resource": jumlah_proses,
             "error": "MPI gagal dijalankan",
         }
 
@@ -157,19 +161,45 @@ def jalankan_mpi(ukuran, jumlah_proses):
     return {
         "nama": f"MPI4Py ({jumlah_proses} proses)",
         "waktu": waktu,
+        "resource": jumlah_proses,
     }
+
+
+def hitung_speedup_efisiensi(hasil):
+    waktu_sekuensial = hasil[0]["waktu"]
+
+    for item in hasil:
+        if item["waktu"] is None or item["waktu"] == 0:
+            item["speedup"] = None
+            item["efisiensi"] = None
+            continue
+
+        item["speedup"] = waktu_sekuensial / item["waktu"]
+        item["efisiensi"] = item["speedup"] / item["resource"]
 
 
 def tampilkan_ringkasan(hasil):
     print("\n" + "=" * 55)
-    print("RINGKASAN WAKTU EKSEKUSI")
+    print("RINGKASAN WAKTU, SPEEDUP, DAN EFISIENSI")
     print("=" * 55)
+    print(
+        f"{'Metode':<24} "
+        f"{'Waktu (s)':>12} "
+        f"{'Speedup':>10} "
+        f"{'Efisiensi':>12}"
+    )
+    print("-" * 62)
 
     for item in hasil:
         if item["waktu"] is None:
-            print(f"{item['nama']:<24}: gagal / tidak tersedia")
+            print(f"{item['nama']:<24} {'gagal':>12} {'-':>10} {'-':>12}")
         else:
-            print(f"{item['nama']:<24}: {item['waktu']:.6f} detik")
+            print(
+                f"{item['nama']:<24} "
+                f"{item['waktu']:>12.6f} "
+                f"{item['speedup']:>10.4f} "
+                f"{item['efisiensi'] * 100:>11.2f}%"
+            )
 
 
 def buat_grafik(hasil):
@@ -217,6 +247,76 @@ def buat_grafik(hasil):
     plt.show()
 
 
+def buat_grafik_speedup_efisiensi(hasil):
+    data_valid = [
+        item
+        for item in hasil
+        if item["waktu"] is not None
+        and item["speedup"] is not None
+        and item["efisiensi"] is not None
+    ]
+
+    if not data_valid:
+        print("\nGrafik speedup dan efisiensi tidak dibuat karena data tidak valid.")
+        return
+
+    try:
+        import matplotlib.pyplot as plt
+    except ImportError:
+        print("\nGrafik speedup dan efisiensi teks:")
+        for item in data_valid:
+            print(
+                f"{item['nama']:<24} | "
+                f"speedup {item['speedup']:.4f}x | "
+                f"efisiensi {item['efisiensi'] * 100:.2f}%"
+            )
+        return
+
+    nama = [item["nama"] for item in data_valid]
+    speedup = [item["speedup"] for item in data_valid]
+    efisiensi = [item["efisiensi"] * 100 for item in data_valid]
+    warna = ["#4C78A8", "#F58518", "#54A24B"][: len(nama)]
+
+    fig, axes = plt.subplots(1, 2, figsize=(12, 5))
+
+    bars_speedup = axes[0].bar(nama, speedup, color=warna)
+    axes[0].set_title("Speedup")
+    axes[0].set_xlabel("Metode")
+    axes[0].set_ylabel("Speedup (x)")
+    axes[0].grid(axis="y", linestyle="--", alpha=0.35)
+
+    for bar, value in zip(bars_speedup, speedup):
+        axes[0].text(
+            bar.get_x() + bar.get_width() / 2,
+            bar.get_height(),
+            f"{value:.2f}x",
+            ha="center",
+            va="bottom",
+        )
+
+    bars_efisiensi = axes[1].bar(nama, efisiensi, color=warna)
+    axes[1].set_title("Efisiensi")
+    axes[1].set_xlabel("Metode")
+    axes[1].set_ylabel("Efisiensi (%)")
+    axes[1].grid(axis="y", linestyle="--", alpha=0.35)
+
+    for bar, value in zip(bars_efisiensi, efisiensi):
+        axes[1].text(
+            bar.get_x() + bar.get_width() / 2,
+            bar.get_height(),
+            f"{value:.2f}%",
+            ha="center",
+            va="bottom",
+        )
+
+    fig.tight_layout()
+
+    output = Path(__file__).with_name("grafik_speedup_efisiensi.png")
+    plt.savefig(output, dpi=150)
+    print(f"Grafik speedup dan efisiensi disimpan ke: {output}")
+    plt.show()
+
+
 def main():
     print("=" * 55)
     print(" GABUNGAN EKSEKUSI: SEQUENTIAL, NUMBA, DAN MPI4PY")
@@ -235,8 +335,10 @@ def main():
     hasil.append(jalankan_numba(matrix, jumlah_thread))
     hasil.append(jalankan_mpi(ukuran, jumlah_proses))
 
+    hitung_speedup_efisiensi(hasil)
     tampilkan_ringkasan(hasil)
     buat_grafik(hasil)
+    buat_grafik_speedup_efisiensi(hasil)
 
 
 if __name__ == "__main__":
